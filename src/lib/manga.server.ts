@@ -2435,6 +2435,7 @@ export async function renderPanel(
         3,
         line,
         continuity,
+        plan,
       );
       return { url, prompt, level: 0, tries, rewritten };
     } catch (e) {
@@ -2461,6 +2462,7 @@ export async function renderPanel(
           3,
           line,
           continuity,
+          plan,
         );
         return { url, prompt: softened, level: 1, tries, rewritten };
       } catch (e) {
@@ -2482,7 +2484,7 @@ export async function renderPanel(
     for (let round = 0; round < 3; round++) {
       tries++;
       try {
-        const url = await generateImage(plain, seed + 9109 + round * 613, slot + round, bible, 3, line, continuity);
+        const url = await generateImage(plain, seed + 9109 + round * 613, slot + round, bible, 3, line, continuity, plan);
         return { url, prompt: plain, level: 2, tries, rewritten };
       } catch (e) {
         if (e instanceof KilledError) throw e;
