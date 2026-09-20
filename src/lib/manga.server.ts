@@ -381,7 +381,7 @@ const PROMPT_SYSTEM =
   "camera angle changing. Never redesign, re-furnish, rescale or restyle an established place, and never swap it for a " +
   "grander version of itself.\n" +
 
-  "- Exactly one scene, one moment, one instance of each character. Never ask for multiple panels, insets or collages.\n" +
+  "- One continuous scene, one place, one instance of each character. Never ask for insets, collages or a character sheet; frame splitting is decided ONLY by the FRAMES tail below.\n" +
   "- NO-CHARACTER LINES (critical): if the line describes only a place, an object, the sky, weather or a phenomenon and " +
   "involves no person, the prompt MUST be a pure environment shot with NOBODY in it. Start it with 'Empty environment " +
   "shot, no people:'. Never add a silhouette, an onlooker or a main character just to fill the frame.\n" +
