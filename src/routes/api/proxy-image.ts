@@ -5,7 +5,11 @@ export const Route = createFileRoute("/api/proxy-image")({
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url).searchParams.get("url");
-        if (!url || !/^https:\/\/[a-z0-9.-]*(pixazo\.ai|r2\.dev)\//i.test(url)) {
+        // Only the image provider's own output hosts may be proxied.
+        if (
+          !url ||
+          !/^https:\/\/[a-z0-9.-]*(agnes-ai\.com|storage\.googleapis\.com|r2\.dev)\//i.test(url)
+        ) {
           return new Response("Bad url", { status: 400 });
         }
         const upstream = await fetch(url);
