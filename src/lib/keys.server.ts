@@ -1,110 +1,83 @@
 /**
- * API key pools.
+ * Image provider access control.
  *
- * Image keys (Pixazo) are used in parallel — one render per key at once, so
- * ten keys give ten images in parallel and never more. The text key (Z.ai AI)
- * is read directly from the environment in zai.server.ts.
+ * ONE key, ONE model: the single Agnes AI key (AGNES_API_KEY) drives every
+ * render through `agnes-image-2.5-flash`. The key is read only here, on the
+ * server, and is never sent to the browser or written into the codebase.
+ *
+ * The free tier allows 20 requests per minute, so this module owns a hard
+ * 20 RPM sliding-window gate plus a small concurrency cap. Every image request
+ * in the process passes through `withImageKey`, so the limit can never be
+ * exceeded no matter how many lanes the page runs.
  */
 
-/** How many image keys the pool may hold. */
-export const MAX_IMAGE_KEYS = 10;
+/** Requests allowed per rolling minute (provider limit). */
+export const IMAGE_RPM = 20;
+/** Rolling window length. */
+const WINDOW_MS = 60_000;
+/** Safety margin so clock drift never pushes a request over the edge. */
+const SPACING_MS = Math.ceil(WINDOW_MS / IMAGE_RPM) + 100; // ~3.1s between starts
 
-function readPool(prefix: string): string[] {
-  const keys: string[] = [];
-  const base = process.env[prefix];
-  if (base) keys.push(base.trim());
-  for (let i = 1; i <= MAX_IMAGE_KEYS + 2; i++) {
-    const v = process.env[`${prefix}_${i}`];
-    if (v && v.trim()) keys.push(v.trim());
+/**
+ * How many renders may be in flight at once. A render can take tens of
+ * seconds; more than this in parallel buys nothing once 20 RPM is the ceiling.
+ */
+export const PER_KEY_CONCURRENCY = 4;
+
+export function agnesKey(): string {
+  const key = process.env["AGNES_API_KEY"]?.trim();
+  if (!key) throw new Error("Missing AGNES_API_KEY (Agnes AI image key)");
+  return key;
+}
+
+/** Start times of recent requests, oldest first. */
+let starts: number[] = [];
+let inFlight = 0;
+let lastStart = 0;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function prune(now: number) {
+  starts = starts.filter((t) => now - t < WINDOW_MS);
+}
+
+/** Milliseconds to wait before another request may start. 0 = go now. */
+function waitFor(now: number): number {
+  prune(now);
+  if (inFlight >= PER_KEY_CONCURRENCY) return 200;
+  const sinceLast = now - lastStart;
+  if (sinceLast < SPACING_MS) return SPACING_MS - sinceLast;
+  if (starts.length >= IMAGE_RPM) {
+    const oldest = starts[0] as number;
+    return Math.max(50, WINDOW_MS - (now - oldest));
   }
-  return [...new Set(keys)].slice(0, MAX_IMAGE_KEYS);
-}
-
-export function pixazoKeys(): string[] {
-  const keys = readPool("PIXAZO_API_KEY");
-  if (keys.length === 0) throw new Error("Missing PIXAZO_API_KEY");
-  return keys;
+  return 0;
 }
 
 /**
- * Deterministic spread for the IMAGE pool: a caller passes the scene index as
- * `slot`, so consecutive scenes running at the same time land on different
- * keys. `attempt` shifts to the next key on a retry.
- */
-export function pickKey(keys: string[], slot: number, attempt = 0): string {
-  const n = keys.length;
-  const i = ((((slot % n) + n) % n) + attempt) % n;
-  return keys[i] as string;
-}
-
-/* ------------------------------------------------------------------ */
-/* One image per key at a time                                        */
-/* ------------------------------------------------------------------ */
-
-/**
- * Keep provider load conservative. Saturating a free image key with ten
- * simultaneous renders caused throttling and inconsistent upstream results.
- */
-export const PER_KEY_CONCURRENCY = 1;
-
-/** In-flight renders per key. */
-const inFlight = new Map<string, number>();
-/** Callers waiting for capacity on any key. */
-const waiters: (() => void)[] = [];
-
-function load(key: string): number {
-  return inFlight.get(key) ?? 0;
-}
-
-function takeFree(keys: string[], slot: number, attempt: number): string | undefined {
-  const n = keys.length;
-  let best: string | undefined;
-  for (let step = 0; step < n; step++) {
-    const key = pickKey(keys, slot + step, attempt);
-    if (load(key) === 0) return key;
-    if (load(key) < PER_KEY_CONCURRENCY && (best === undefined || load(key) < load(best))) {
-      best = key;
-    }
-  }
-  return best;
-}
-
-/**
- * Leases capacity on an image key for the duration of `fn`. Each key handles up
- * to PER_KEY_CONCURRENCY renders at once, so with ten keys configured up to
- * ten images are generated in parallel; anything beyond that waits.
+ * Leases a rate-limit slot for the duration of `fn` and hands it the API key.
+ * Keeps the historical signature (`slot`, `attempt`) so callers are unchanged;
+ * with a single key those only matter for logging.
  */
 export async function withImageKey<T>(
-  slot: number,
-  attempt: number,
+  _slot: number,
+  _attempt: number,
   fn: (key: string, keyIndex: number) => Promise<T>,
 ): Promise<T> {
-  const keys = pixazoKeys();
-  let key = takeFree(keys, slot, attempt);
-  while (!key) {
-    // Waiting must never be able to sleep forever: every release wakes ALL
-    // waiters, and each wait also times out on its own. A lost wake-up used to
-    // leave a long script's last panels queued behind capacity that had already
-    // been given back — the run looked frozen midway.
-    await new Promise<void>((resolve) => {
-      let done = false;
-      const wake = () => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        resolve();
-      };
-      const timer = setTimeout(wake, 250);
-      waiters.push(wake);
-    });
-    key = takeFree(keys, slot, attempt);
+  const key = agnesKey();
+  // Wait for a free slot inside the 20 RPM budget.
+  for (;;) {
+    const wait = waitFor(Date.now());
+    if (wait <= 0) break;
+    await sleep(Math.min(wait, 1_000));
   }
-  inFlight.set(key, load(key) + 1);
+  const now = Date.now();
+  lastStart = now;
+  starts.push(now);
+  inFlight++;
   try {
-    return await fn(key, keys.indexOf(key));
+    return await fn(key, 0);
   } finally {
-    inFlight.set(key, Math.max(0, load(key) - 1));
-    const woken = waiters.splice(0, waiters.length);
-    for (const w of woken) w();
+    inFlight--;
   }
 }
