@@ -1,5 +1,11 @@
 import type { Segment } from "./script";
 import { withImageKey } from "./keys.server";
+import {
+  parsePanelPlan,
+  panelDirective,
+  frameCeiling,
+  type PanelPlan,
+} from "./panels";
 import { textChat } from "./text-engine.server";
 import { assertActive, killableSignal, KilledError } from "./kill-switch.server";
 
