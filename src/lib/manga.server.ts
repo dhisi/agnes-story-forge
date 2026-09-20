@@ -2049,8 +2049,16 @@ export function composeImagePrompt(
   line?: string,
   /** The previous panel's place and cast, carried forward for continuity. */
   continuity?: string,
+  /** Frame count + translated speech balloons for this timestamp. */
+  plan?: PanelPlan,
 ): string {
   bible = bible ? normalizeLeadCharacter(bible) : bible;
+  // Frame layout and balloon lettering are parsed off FIRST: the sanitisers
+  // below strip every mention of text from the picture body on purpose, so the
+  // lettering instruction is re-attached at the very end, untouched.
+  const panels = plan ?? parsePanelPlan(prompt);
+  const directive = panelDirective(panels);
+  prompt = panels.body;
   // The set sheet travels at the END of the written prompt, where the scene
   // trimming below would have thrown it away — which is exactly why panels of
   // one continuing scene kept coming back in a different room. Lift it out
