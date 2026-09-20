@@ -13,7 +13,7 @@ const IMAGE_REQUEST_TIMEOUT_MS = 1_800_000;
 
 /**
  * Renderer-only art direction. The writing model describes only scene content;
- * this exact block is added at the final Pixazo request for every image.
+ * this exact block is added at the final Agnes image request for every image.
  * Flux has no negative-prompt channel, so this stays entirely positive: naming
  * unwanted media such as photography or pencil sketches can make Flux draw them.
  */
@@ -2162,7 +2162,7 @@ export function composeImagePrompt(
   );
 
   // Scale and action direction sit before the scene and outside its trimming
-  // budget, so Pixazo always receives size, movement and effect instructions.
+  // budget, so the image model always receives size, movement and effect instructions.
   return `${lead}${scene}. ${tail}`;
 }
 
