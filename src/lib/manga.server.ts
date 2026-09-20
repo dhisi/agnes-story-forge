@@ -2147,11 +2147,11 @@ export function composeImagePrompt(
   // flying and glowing magic are staged as action but stay wordless.
   const combat = action && isCombatBeat(fixed, line);
   const actionLead = action
-    ? `${ACTION_DIRECTION}. ${combat ? `${sfxDirection(fixed, line)}. ` : `${NO_TEXT_GUARD}. `}`
+    ? `${ACTION_DIRECTION}. ${combat ? `${sfxDirection(fixed, line)}. ` : directive ? "" : `${NO_TEXT_GUARD}. `}`
     : "";
   const scaleLead = scaleDirection(`${line ?? ""} ${sceneText}`);
   const lead = `${scaleLead ? `${scaleLead}. ` : ""}${actionLead}`;
-  const tail = `${setLock ? `${setLock}. ` : ""}${STYLE_TAIL}. ${SINGLE_FRAME_GUARD}`;
+  const tail = `${setLock ? `${setLock}. ` : ""}${STYLE_TAIL}${panels.frames > 1 ? "" : `. ${SINGLE_FRAME_GUARD}`}`;
   const scene = clip(
     parts
       .join(". ")
