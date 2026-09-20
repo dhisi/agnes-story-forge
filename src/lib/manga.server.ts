@@ -2423,14 +2423,18 @@ export async function renderPanel(
   //
   // The frame/balloon tail is split off here, once, so every retry below draws
   // the same layout and the same translated dialogue as the first attempt.
-  const plan = parsePanelPlan(written, duration);
+  // The timestamp itself ("12s-18s") carries the length, so the frame ceiling
+  // needs nothing extra from the caller.
+  const span = /(-?\d+(?:\.\d+)?)s?\s*-\s*(-?\d+(?:\.\d+)?)s?/.exec(timestamp ?? "");
+  const seconds =
+    duration ?? (span ? Math.max(0, Number(span[2]) - Number(span[1])) : undefined);
+  const plan = parsePanelPlan(written, seconds);
   const prompt = plan.body;
   const rewritten = false;
-  void timestamp;
   if (plan.frames > 1 || plan.bubbles.some((b) => b.text))
     console.log(
       `[panels] ${plan.frames} frame(s), ${plan.bubbles.filter((b) => b.text).length} balloon(s)` +
-        `${duration === undefined ? "" : ` for ${duration.toFixed(1)}s (max ${frameCeiling(duration)})`}`,
+        `${seconds === undefined ? "" : ` for ${seconds.toFixed(1)}s (max ${frameCeiling(seconds)})`}`,
     );
 
 
