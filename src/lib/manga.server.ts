@@ -2387,6 +2387,8 @@ export async function renderPanel(
   timestamp?: string,
   /** Previous panel's place and cast, so a reroll cannot relocate the scene. */
   continuity?: string,
+  /** This timestamp's own length in seconds; it caps the frame count. */
+  duration?: number,
 ): Promise<{
   url: string;
   prompt: string;
@@ -2404,9 +2406,19 @@ export async function renderPanel(
   // post-render image review are gone: they added one rate-limited request per
   // panel and were the slowest part of a long run. Quality is controlled by the
   // prompt composition in composeImagePrompt instead.
-  const prompt = written;
+  //
+  // The frame/balloon tail is split off here, once, so every retry below draws
+  // the same layout and the same translated dialogue as the first attempt.
+  const plan = parsePanelPlan(written, duration);
+  const prompt = plan.body;
   const rewritten = false;
   void timestamp;
+  if (plan.frames > 1 || plan.bubbles.some((b) => b.text))
+    console.log(
+      `[panels] ${plan.frames} frame(s), ${plan.bubbles.filter((b) => b.text).length} balloon(s)` +
+        `${duration === undefined ? "" : ` for ${duration.toFixed(1)}s (max ${frameCeiling(duration)})`}`,
+    );
+
 
   // Stage 1 — the prompt exactly as written, retried in full on fresh seeds and
   // fresh keys. Each round itself retries inside generateImage, so a busy or
