@@ -2228,8 +2228,10 @@ export async function generateImage(
   attempts = 6,
   line?: string,
   continuity?: string,
+  /** Frame layout + translated balloons for this timestamp. */
+  plan?: PanelPlan,
 ): Promise<string> {
-  const body = composeImagePrompt(prompt, bible, line, continuity);
+  const body = composeImagePrompt(prompt, bible, line, continuity, plan);
   // Anchor the noise to the PLACE, not to the panel number. Flux rebuilds a
   // room from scratch for every unrelated seed, which is why ten panels in one
   // hall were ten different halls. Panels sharing a location now share a seed
