@@ -112,11 +112,12 @@ const PROMPT_RANGE = 15;
 
 
 /**
- * Image pipeline shape: TEN Pixazo keys and ten client lanes. Each lane draws
- * one prompt with its exact text, and the server distributes consecutive slots
- * across all ten keys so a full queue renders ten panels in parallel.
+ * Image pipeline shape: ONE Agnes AI key, one model (agnes-image-2.5-flash).
+ * The free tier allows 20 requests per minute, and the server owns that budget
+ * (src/lib/keys.server.ts), so a few client lanes simply keep the queue fed
+ * without ever racing past the limit.
  */
-const IMAGE_CONCURRENCY = 10;
+const IMAGE_CONCURRENCY = 4;
 const IMAGE_BATCH = 1;
 /**
  * The server already downloads and validates every finished image (complete
