@@ -2163,7 +2163,7 @@ export function composeImagePrompt(
 
   // Scale and action direction sit before the scene and outside its trimming
   // budget, so the image model always receives size, movement and effect instructions.
-  return `${lead}${scene}. ${tail}`;
+  return `${lead}${scene}. ${tail}${directive ? `. ${directive}` : ""}`;
 }
 
 
