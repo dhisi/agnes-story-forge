@@ -387,8 +387,8 @@ const PROMPT_SYSTEM =
   "shot, no people:'. Never add a silhouette, an onlooker or a main character just to fill the frame.\n" +
   "- CROWD LINES: if the line says many people, everyone, a crowd, an army, soldiers or people running, show that " +
   "crowd or force, made of unnamed people who are not the main cast.\n" +
-  "- NO TEXT: never describe dialogue, captions, letters, numbers, signs, posters, banners, newspapers, book pages, screens " +
-  "with writing, labels or logos. The renderer alone may add one action SFX word selected from the approved list.\n" +
+  "- NO TEXT IN THE PROMPT BODY: never describe captions, letters, numbers, signs, posters, banners, newspapers, book " +
+  "pages, screens with writing, labels or logos. Spoken words belong ONLY in the DIALOGUE tail described below.\n" +
   "- SHORT / NEARLY EMPTY LINES (critical): some lines are very short — a shout, a name, one word, a reaction, or a " +
   "silent beat with almost no words. Such a line has NO new setting of its own, so you MUST hold the SAME place, the " +
   "SAME people and the SAME time of day as the surrounding lines, and change only the camera or the person's acting. " +
@@ -397,9 +397,23 @@ const PROMPT_SYSTEM =
   "scene the script does not have. When such a line is marked with CONTEXT below, take its place and people from that " +
   "context verbatim.\n" +
   "- 65 to 95 words each — put the exact visible action, named cast and place in the FIRST sentence. Keep every word visual and load-bearing. English only. The image engine gives the beginning much more weight, so never open with mood, history or explanation.\n" +
+  "\nFRAMES + DIALOGUE TAIL (required on every prompt). After the prompt body, append this exact tail:\n" +
+  "|| FRAMES: n || BEATS: 1) ... ; 2) ... || DIALOGUE: 1) Name: spoken line ; 2) NONE\n" +
+  "- FRAMES is how many comic frames that ONE timestamp is drawn as, decided by BOTH its length (shown as [Xs-Ys]) and " +
+  "how many real story beats its own text contains. Hard ceiling by length: under 5s = 1, 5-9s = 2, 9-15s = 3, over 15s " +
+  "= 4. NEVER pad: if the line is one single moment, FRAMES is 1 however long the timestamp is. Only split when the " +
+  "line genuinely contains that many separate consecutive moments.\n" +
+  "- BEATS: write one only when FRAMES is 2 or more — exactly FRAMES short phrases (4-12 words each), in story order, " +
+  "each the visible action of that frame, all in the SAME place with the SAME characters. Omit BEATS when FRAMES is 1.\n" +
+  "- DIALOGUE: exactly FRAMES entries. For a frame where someone SPEAKS or SHOUTS in the script line, give the speaker's " +
+  "name, a colon, then that speech translated into short natural spoken ENGLISH (max 12 words, no quotation marks, no " +
+  "Hindi, no transliteration, keep the emotion — a shout stays a shout). If the script line is narration, description " +
+  "or silence with no spoken words, write NONE for that frame. Never invent dialogue that the script does not speak.\n" +
   "OUTPUT FORMAT (strict about the shape, nothing else): one plain line per requested script line, each starting with " +
-  "that script line's own number, then ') ', then the whole prompt on that same single line. Example:\n" +
-  "37) In the sunlit courtyard, Henan, a male 23-year-old young man ...\n38) In the same courtyard, Henan turns ...\n" +
+  "that script line's own number, then ') ', then the whole prompt AND its tail on that same single line. Example:\n" +
+  "37) In the sunlit courtyard, Henan, a male 23-year-old young man ... || FRAMES: 1 || DIALOGUE: 1) Henan: Stay back!\n" +
+  "38) In the same courtyard, Henan turns ... || FRAMES: 2 || BEATS: 1) Henan turns towards the gate ; 2) he draws his " +
+  "blade in one sweep || DIALOGUE: 1) NONE ; 2) Henan: Who sent you?\n" +
   "No JSON, no quotes, no brackets, no bullets, no headings, no blank lines, and never break one prompt across lines.";
 
 /** Hard ceiling for one published text request; larger payloads can sit idle at the edge. */
