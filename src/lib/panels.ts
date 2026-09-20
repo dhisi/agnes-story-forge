@@ -118,20 +118,50 @@ export function parsePanelPlan(written: string, durationSeconds?: number): Panel
 
 const ORDINAL = ["first", "second", "third", "fourth"];
 
-function layoutOf(frames: number): string {
-  if (frames === 2)
-    return "divided into exactly 2 equal comic frames side by side, left and right, separated by a clean thin white gutter";
-  if (frames === 3)
-    return "divided into exactly 3 comic frames in one row, left, middle and right, separated by clean thin white gutters";
-  return "divided into exactly 4 equal comic frames in a 2x2 grid read left to right then top to bottom, separated by clean thin white gutters";
+/** Small stable hash so the same panel always gets the same layout. */
+function hash(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+/**
+ * Dynamic manhwa page layouts — never a plain equal grid. Each option is a real
+ * published-webtoon composition: tilted frames, uneven weights, one dominant
+ * frame, frames that bleed off the page edge and art that breaks a border.
+ */
+const LAYOUTS: Record<number, string[]> = {
+  2: [
+    "a dramatic manhwa page layout of exactly 2 frames: a narrow full-width letterbox frame across the top and one huge tall frame filling the rest below it, both slightly tilted with a jagged diagonal white gutter between them, the lower frame's action breaking over its border",
+    "a dynamic manhwa page layout of exactly 2 frames split by one steep diagonal white gutter running corner to corner, the upper-left frame smaller and the lower-right frame dominant and full-bleed, borders angled and irregular",
+    "a bold manhwa page layout of exactly 2 frames: one enormous full-bleed frame filling the page, with a smaller tilted inset frame overlapping its lower-left corner inside a thick white border",
+  ],
+  3: [
+    "a dramatic manhwa page layout of exactly 3 frames: a wide thin letterbox frame across the top, a tall tilted frame below it on the left, and a bigger dominant frame on the right bleeding off the page edge, all separated by irregular angled white gutters",
+    "a dynamic manhwa page layout of exactly 3 frames stacked as uneven horizontal bands of different heights, each band slanted at a slightly different angle with jagged white gutters, the middle band the widest and most dominant, action breaking across the gutters",
+    "a bold manhwa page layout of exactly 3 frames: two small stacked frames down the left side and one towering full-height frame on the right taking two thirds of the page, tilted borders, thick uneven white gutters, one character breaking out of a frame edge",
+  ],
+  4: [
+    "a dramatic manhwa page layout of exactly 4 frames of clearly different sizes: a thin wide establishing frame on top, two small tilted frames side by side in the middle, and one huge dominant climax frame across the bottom bleeding off the edges, all with angled irregular white gutters",
+    "a dynamic manhwa page layout of exactly 4 frames arranged around one big central diagonal frame: three narrow slanted frames tucked along the top and left, the central frame dominant and full-bleed with art breaking over its borders, jagged white gutters",
+    "a bold asymmetric manhwa page layout of exactly 4 frames of unequal size and angle, staggered like shattered glass with steep diagonal white gutters, one frame at least twice the size of the others, effects and debris crossing between frames",
+  ],
+};
+
+function layoutOf(frames: number, key: string): string {
+  const options = LAYOUTS[Math.min(4, Math.max(2, frames))] ?? LAYOUTS[2]!;
+  return options[hash(key) % options.length]!;
 }
 
 function balloonFor(b: Bubble, where: string): string {
   const who = b.speaker ? `${b.speaker}'s` : "the speaking character's";
   return (
-    `${where} draw one clean white rounded manga speech balloon with a smooth black outline and a tail pointing to ` +
-    `${who} mouth, containing ONLY this exact English text, spelled exactly, in bold upright comic lettering, ` +
-    `correctly spelled and fully inside the balloon: "${b.text}"`
+    `${where} draw one clean white manhwa speech balloon with a smooth bold black outline and a pointed tail aimed at ` +
+    `${who} mouth, placed over empty background so it covers no face, containing ONLY this exact English text, ` +
+    `spelled exactly, in bold upright comic lettering fully inside the balloon: "${b.text}"`
   );
 }
 
@@ -148,8 +178,9 @@ export function panelDirective(plan: PanelPlan): string {
 
   if (plan.frames > 1) {
     out.push(
-      `render this as ONE manga comic page ${layoutOf(plan.frames)}, every frame in the same art style, ` +
-        `the same characters and the same location, showing consecutive moments of this one scene`,
+      `render this as ONE manhwa comic page in ${layoutOf(plan.frames, plan.body)}, every frame in the same art ` +
+        `style with the same characters and the same location, showing consecutive moments of this one scene, ` +
+        `cinematic varied camera distance per frame, no equal boxy grid and no repeated identical frame shape`,
     );
     plan.beats.forEach((beat, i) => {
       out.push(`the ${ORDINAL[i] ?? `frame ${i + 1}`} frame shows ${beat.replace(/\.$/, "")}`);
@@ -172,3 +203,4 @@ export function panelDirective(plan: PanelPlan): string {
 
   return out.join(". ");
 }
+
