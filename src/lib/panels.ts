@@ -78,31 +78,45 @@ function parseBubble(raw: string): Bubble {
 }
 
 /**
- * Reads the writer's tail off a prompt. A prompt without a tail (older cached
- * prompts, repairs, manual edits) is simply a silent single frame — exactly how
- * this app behaved before, so nothing breaks.
+ * Reads the writer's tail off a prompt, wherever it sits. The writer sometimes
+ * drops the tail in the MIDDLE of the prompt (before the location lock), so each
+ * tail value is cut at its own sentence end and whatever followed is handed back
+ * to the picture body instead of being lettered into a balloon.
+ *
+ * A prompt without a tail (older cached prompts, repairs, manual edits) is simply
+ * a silent single frame — exactly how this app behaved before.
  */
 export function parsePanelPlan(written: string, durationSeconds?: number): PanelPlan {
-  const pieces = written.split(SPLIT);
-  const body = (pieces[0] ?? written).trim();
   let frames = 1;
   let beats: string[] = [];
   let bubbles: Bubble[] = [];
+  const leftovers: string[] = [];
 
-  for (const piece of pieces.slice(1)) {
-    const m = /^\s*([A-Za-z ]+?)\s*:\s*([\s\S]*)$/.exec(piece);
-    if (!m) continue;
-    const key = m[1]!.trim().toUpperCase();
-    const value = m[2]!.trim();
-    if (key === "FRAMES") {
-      const n = Number.parseInt(value.replace(/\D+/g, ""), 10);
-      if (Number.isFinite(n)) frames = n;
-    } else if (key === "BEATS") {
-      beats = splitList(value);
-    } else if (key === "DIALOGUE") {
-      bubbles = splitList(value).map(parseBubble);
-    }
-  }
+  // "|| KEY: value" up to the next "||" or the end of the line.
+  const body = written
+    .replace(/\|\|\s*(FRAMES|BEATS|DIALOGUE)\s*:\s*([^|]*)/gi, (_all, rawKey: string, rawValue: string) => {
+      const key = rawKey.toUpperCase();
+      let value = rawValue.trim();
+      // A value never runs into the next instruction sentence: cut at the first
+      // ". Capitalised…" that is not part of a "1) …" list item.
+      const cut = /[.?!]\s+(?=[A-Z][A-Za-z]{2,})/.exec(value);
+      if (cut && cut.index !== undefined) {
+        leftovers.push(value.slice(cut.index + 1).trim());
+        value = value.slice(0, cut.index).trim();
+      }
+      if (key === "FRAMES") {
+        const n = Number.parseInt(value.replace(/\D+/g, ""), 10);
+        if (Number.isFinite(n)) frames = n;
+      } else if (key === "BEATS") {
+        beats = splitList(value);
+      } else if (key === "DIALOGUE") {
+        bubbles = splitList(value).map(parseBubble);
+      }
+      return " ";
+    })
+    .concat(leftovers.length ? ` ${leftovers.join(" ")}` : "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 
   // Never pad: the frame count is the smallest of what the writer asked for,
   // what the duration allows, and how many beats it actually described.
@@ -115,6 +129,7 @@ export function parsePanelPlan(written: string, durationSeconds?: number): Panel
 
   return { body, frames, beats, bubbles };
 }
+
 
 const ORDINAL = ["first", "second", "third", "fourth"];
 
