@@ -2228,37 +2228,38 @@ export async function generateImage(
   for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
     // A killed run never spends another image credit.
     assertActive();
-    // Each key renders three images at a time: this waits for capacity, so at
-    // most thirty renders are ever in flight together.
+    // withImageKey owns the provider's 20 requests-per-minute budget: this
+    // waits for a free slot, so the free tier is never exceeded.
     const url = await withImageKey(slot, attempt, async (key) => {
       const gate = killableSignal(IMAGE_REQUEST_TIMEOUT_MS);
       try {
-        const res = await fetch(PIXAZO_URL, {
+        const res = await fetch(AGNES_URL, {
           method: "POST",
           signal: gate.signal,
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-cache",
-            "Ocp-Apim-Subscription-Key": key,
+            Authorization: `Bearer ${key}`,
           },
           body: JSON.stringify({
-            prompt: body,
-            // Eight steps is the highest this endpoint honours for Schnell and
-            // it measurably cleans up hands, faces and composition — the three
-            // things that sent panels to the Reroll button.
-            num_steps: 8,
-
-            // a fresh seed each attempt, so a blank frame is never re-rolled identically
-            seed: anchored + attempt * 977,
-
-            width: 1344,
-            height: 768,
+            model: AGNES_IMAGE_MODEL,
+            // The model has no seed channel, so a retry must differ in the
+            // text itself; the variation note is neutral art direction and
+            // never changes the scene.
+            prompt: attempt === 0 ? body : `${body} [render variation ${anchored + attempt}]`,
+            // 16:9 tier output: 1312x736, the closest match to the panel frame.
+            size: "1K",
+            ratio: "16:9",
+            extra_body: { response_format: "url" },
           }),
         });
         if (res.ok) {
-          const json = (await res.json()) as { output?: string };
-          if (json.output) {
-            if (await isRealImage(json.output)) return json.output;
+          const json = (await res.json()) as {
+            data?: { url?: string | null; b64_json?: string | null }[];
+          };
+          const out = json.data?.[0]?.url ?? undefined;
+          if (out) {
+            if (await isRealImage(out)) return out;
             lastErr = "blank image rejected";
           } else {
             lastErr = "no output url";
@@ -2266,11 +2267,11 @@ export async function generateImage(
         } else {
           lastErr = `${res.status} ${await res.text().catch(() => "")}`.slice(0, 300);
         }
-        if (lastErr) console.warn(`[pixazo] seed=${seed} attempt ${attempt + 1}: ${lastErr}`);
+        if (lastErr) console.warn(`[agnes] seed=${seed} attempt ${attempt + 1}: ${lastErr}`);
       } catch (e) {
         if (e instanceof KilledError) throw e;
         lastErr = e instanceof Error ? e.message : String(e);
-        console.warn(`[pixazo] seed=${seed} attempt ${attempt + 1} threw: ${lastErr}`);
+        console.warn(`[agnes] seed=${seed} attempt ${attempt + 1} threw: ${lastErr}`);
         assertActive();
       } finally {
         gate.release();
