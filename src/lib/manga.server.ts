@@ -366,7 +366,7 @@ const PROMPT_SYSTEM =
   "distortion. Emotion may use subtle background rays, tension lines, dramatic shadow, eye emphasis, atmospheric particles " +
   "and emotional accents. Power or fantasy may use established aura, energy particles, glow, magic circles, elemental " +
   "trails and environmental reaction. Do not write an SFX word yourself; the renderer adds one script-matched action SFX. " +
-  "Never request dialogue, speech balloons, narration boxes, captions, signs or unrelated lettering.\n" +
+  "Never describe narration boxes, captions, signs or unrelated lettering in the prompt body; spoken words go only in the DIALOGUE tail.\n" +
   "- CAMERA & COMPOSITION: choose the camera specifically for the current story beat; never repeat one fixed shot type. " +
   "Use wide shots for geography and large-scale action, medium shots for interaction, close-ups for facial emotion, extreme " +
   "close-ups for intense reactions, low angles for power, high angles for vulnerability or scale, over-the-shoulder shots " +
